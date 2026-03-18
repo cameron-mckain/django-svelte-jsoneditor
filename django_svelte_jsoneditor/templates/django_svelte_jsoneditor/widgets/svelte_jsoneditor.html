@@ -1,24 +1,49 @@
 {% load static %}
 
+{% if widget.allow_file_import %}
+<div style="margin-bottom: 8px;">
+  <input type="file" id="file_import_{{ widget.attrs.id }}" accept=".json">
+</div>
+{% endif %}
+
 <div id="jsoneditor_{{ widget.attrs.id }}" class="{{ widget.wrapper_class }}"></div>
 
 <textarea name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>{% if widget.value %}{{ widget.value }}{% endif %}</textarea>
 
-<script type="module">    
+<script type="module">
   import { JSONEditor } from '{% static "django_svelte_jsoneditor/js/svelte_jsoneditor.js" %}'
-  
+
+  const textarea = document.getElementById('{{ widget.attrs.id }}')
+  const container = document.getElementById('jsoneditor_{{ widget.attrs.id }}')
+
   const editor = new JSONEditor({
-    target: document.getElementById('jsoneditor_{{ widget.attrs.id }}'),
-    props: {         
-        content: {   
-          text: document.getElementById('{{ widget.attrs.id }}').value || undefined         
-        },        
-        onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {            
+    target: container,
+    props: {
+        content: {
+          text: textarea.value || undefined
+        },
+        onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
             const value = updatedContent.json ? JSON.stringify(updatedContent.json) : updatedContent.text
-            document.getElementById('{{ widget.attrs.id }}').value = value
+            textarea.value = value
         }
     }
   })
 
   editor.updateProps({{ widget.props|safe }})
+
+  {% if widget.allow_file_import %}
+  const fileInput = document.getElementById('file_import_{{ widget.attrs.id }}')
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const json = JSON.parse(text)
+      textarea.value = JSON.stringify(json)
+      editor.set({ json })
+    } catch (err) {
+      alert('Could not parse JSON file: ' + err.message)
+    }
+  })
+  {% endif %}
 </script>

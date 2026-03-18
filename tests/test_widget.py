@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.test.utils import override_settings
 from django_svelte_jsoneditor.exceptions import InvalidPropError
-from django_svelte_jsoneditor.widgets import SvelteJSONEditorWidget, ReadOnlySvelteJSONEditorWidget
+from django_svelte_jsoneditor.widgets import ReadOnlySvelteJSONEditorWidget, SvelteJSONEditorWidget
 
 from tests.server.example.models import ExampleBlankJsonFieldModel, ExampleJsonFieldModel
 from ._utils import get_admin_add_view_url, get_admin_change_view_url
@@ -113,17 +113,78 @@ class TestSvelteJsonEditorWidget(TestCase):
             widget = SvelteJSONEditorWidget()
             widget.get_context("my_json", "null", {"required": True, "id": "id_my_json"})
 
+
+class TestFileImport(TestCase):
+    def test_file_import_disabled_by_default(self):
+        widget = SvelteJSONEditorWidget()
+        self.assertFalse(widget.allow_file_import)
+
+    def test_file_import_not_rendered_by_default(self):
+        class FileImportForm(forms.Form):
+            my_json = forms.JSONField(widget=SvelteJSONEditorWidget())
+
+        form = FileImportForm()
+        widget_html = str(form["my_json"])
+        self.assertNotIn('type="file"', widget_html)
+        self.assertNotIn("file_import_", widget_html)
+
+    def test_file_import_enabled(self):
+        widget = SvelteJSONEditorWidget(allow_file_import=True)
+        self.assertTrue(widget.allow_file_import)
+
+    def test_file_import_rendered_when_enabled(self):
+        class FileImportForm(forms.Form):
+            my_json = forms.JSONField(widget=SvelteJSONEditorWidget(allow_file_import=True))
+
+        form = FileImportForm()
+        widget_html = str(form["my_json"])
+        self.assertIn('type="file"', widget_html)
+        self.assertIn('accept=".json"', widget_html)
+        self.assertIn("file_import_id_my_json", widget_html)
+
+    def test_file_import_includes_js_handler(self):
+        class FileImportForm(forms.Form):
+            my_json = forms.JSONField(widget=SvelteJSONEditorWidget(allow_file_import=True))
+
+        form = FileImportForm()
+        widget_html = str(form["my_json"])
+        self.assertIn("addEventListener", widget_html)
+        self.assertIn("editor.set", widget_html)
+        self.assertIn("JSON.parse", widget_html)
+
+    def test_file_import_js_not_included_when_disabled(self):
+        class FileImportForm(forms.Form):
+            my_json = forms.JSONField(widget=SvelteJSONEditorWidget())
+
+        form = FileImportForm()
+        widget_html = str(form["my_json"])
+        self.assertNotIn("editor.set", widget_html)
+
+    def test_readonly_widget_no_file_import(self):
+        widget = ReadOnlySvelteJSONEditorWidget()
+        self.assertFalse(widget.allow_file_import)
+
+    def test_file_import_with_custom_props(self):
+        class FileImportForm(forms.Form):
+            my_json = forms.JSONField(widget=SvelteJSONEditorWidget(props={"readOnly": True}, allow_file_import=True))
+
+        form = FileImportForm()
+        widget_html = str(form["my_json"])
+        self.assertIn('type="file"', widget_html)
+        self.assertIn('"readOnly": true', widget_html)
+
+
 class TestReadOnlySvelteJSONEditorWidget(TestCase):
     def test_readonly_widget_default_props(self):
         """Test that ReadOnlySvelteJSONEditorWidget has the correct default props."""
+
         class ReadOnlyJsonEditorForm(forms.Form):
             my_json = forms.JSONField(widget=ReadOnlySvelteJSONEditorWidget())
 
         form = ReadOnlyJsonEditorForm()
         widget_html = str(form["my_json"])
-        
+
         # Check that all expected props are set correctly
         self.assertIn('"mode": "view"', widget_html)
         self.assertIn('"readOnly": true', widget_html)
         self.assertIn('"navigationBar": false', widget_html)
-    
