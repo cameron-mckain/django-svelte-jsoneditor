@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-svelte-jsoneditor"
-version = "0.5.1"
+version = "0.5.2"
 description = "A widget for django's JSONField using the latest-and-greatest Json Editor (talos fork)"
 authors = [
     "Tom Clark <tom@octue.com>",
