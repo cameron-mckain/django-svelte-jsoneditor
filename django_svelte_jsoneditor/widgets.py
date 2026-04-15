@@ -1,7 +1,7 @@
 import json
 from django.forms import Textarea
 
-from .settings import check_props, get_props
+from .settings import DEFAULT_SVELTE_JSONEDITOR_PROPS, check_props, get_props
 
 
 class SvelteJSONEditorWidget(Textarea):
@@ -19,6 +19,17 @@ class SvelteJSONEditorWidget(Textarea):
         attrs.update({"class": "hidden"})
 
         super().__init__(attrs)
+
+    def format_value(self, value):
+        if value is None or value == "":
+            return super().format_value(value)
+        try:
+            parsed = value if isinstance(value, (dict, list)) else json.loads(value)
+        except (TypeError, ValueError):
+            return super().format_value(value)
+        merged = {**DEFAULT_SVELTE_JSONEDITOR_PROPS, **self.props}
+        indent = merged.get("indentation") or 4
+        return json.dumps(parsed, indent=indent, ensure_ascii=False)
 
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)

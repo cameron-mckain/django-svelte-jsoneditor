@@ -7,7 +7,6 @@ from django import forms
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.test.utils import override_settings
-from django_svelte_jsoneditor.exceptions import InvalidPropError
 from django_svelte_jsoneditor.widgets import ReadOnlySvelteJSONEditorWidget, SvelteJSONEditorWidget
 
 from tests.server.example.models import ExampleBlankJsonFieldModel, ExampleJsonFieldModel
@@ -101,17 +100,15 @@ class TestSvelteJsonEditorWidget(TestCase):
         form = SvelteJsonEditorForm()
         self.assertIn('"readOnly": false', str(form["my_json"]))
 
-    @override_settings(SVELTE_JSONEDITOR_PROPS={**{"incorrectProp": True}})
-    def test_svelte_jsoneditor_widget_incorrect_props(self):
-
-        # for props at the widget level
-        with self.assertRaises(InvalidPropError):
-            SvelteJSONEditorWidget(props={"incorrectProp": True})
-
-        # for props in settings
-        with self.assertRaises(InvalidPropError):
-            widget = SvelteJSONEditorWidget()
-            widget.get_context("my_json", "null", {"required": True, "id": "id_my_json"})
+    @override_settings(SVELTE_JSONEDITOR_PROPS={**{"unknownProp": True}})
+    def test_svelte_jsoneditor_widget_accepts_unknown_props(self):
+        # Unknown props pass through to svelte-jsoneditor rather than raising,
+        # so consumers can use props added by newer svelte-jsoneditor releases.
+        widget = SvelteJSONEditorWidget(props={"anotherUnknown": 42})
+        context = widget.get_context("my_json", "null", {"required": True, "id": "id_my_json"})
+        rendered_props = context["widget"]["props"]
+        self.assertIn("unknownProp", rendered_props)
+        self.assertIn("anotherUnknown", rendered_props)
 
 
 class TestFileImport(TestCase):
